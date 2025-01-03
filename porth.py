@@ -152,8 +152,9 @@ def compile_program(program, out_file_path):
 
         out.write("global _start\n")
         out.write("_start:\n")
-        for op in program:
-            assert COUNT_OPS == 5, "Exhaustive counting in compilation"
+        for ip in range(len(program)):
+            op = program[ip]
+            assert COUNT_OPS == 7, "Exhaustive counting in compilation"
             if op[0] == OP_PUSH:
                 out.write("    ;; -- push %d --\n" % op[1])
                 out.write("    push %d\n" % op[1])
@@ -177,6 +178,15 @@ def compile_program(program, out_file_path):
                 out.write("    pop rbx\n")
                 out.write("    cmp rbx, rax\n")
                 out.write("    cmove rcx, rdx\n")
+                out.write("    push rcx\n")
+            elif op[0] == OP_IF:
+                out.write("    ;; -- if --\n")
+                out.write("    pop rax\n")
+                out.write("    test rax, rax\n")
+                assert len(op) >= 2, "`if` instruction does not have reference to end of its block, please use end after if"
+                out.write("    jz addr_%d\n" % op[1])
+            elif op[0] == OP_END:
+                out.write("addr_%d:\n" % ip)
             elif op[0] == OP_DUMP:
                 out.write("    ;; -- dump --\n")
                 out.write("    pop rdi\n")
