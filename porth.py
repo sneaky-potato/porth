@@ -20,6 +20,7 @@ OP_PLUS = iota()
 OP_MINUS = iota()
 OP_EQUAL = iota()
 OP_IF = iota()
+OP_ELSE = iota()
 OP_END = iota()
 OP_DUMP = iota()
 COUNT_OPS = iota()
@@ -45,6 +46,10 @@ def iff():
     return (OP_IF, )
 
 
+def elsef():
+    return (OP_ELSE, )
+
+
 def end():
     return (OP_END, )
 
@@ -57,7 +62,7 @@ def simulate_program(program):
     stack = []
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 7, "Exhastive counting in simulation"
+        assert COUNT_OPS == 8, "Exhastive counting in simulation"
         op = program[ip]
         if op[0] == OP_PUSH:
             stack.append(op[1])
@@ -84,6 +89,10 @@ def simulate_program(program):
                 ip = op[1]
             else:
                 ip += 1
+        elif op[0] == OP_ELSE:
+            assert len(op) >= 2, "`else` instruction does not have reference to end of its block, please use end after if"
+            # jump to end of block
+            ip = op[1]
         elif op[0] == OP_END:
             ip += 1
             pass
@@ -216,7 +225,7 @@ def uncons(xs):
 
 def parse_token_as_op(token):
     (file_path, row, col, word) = token
-    assert COUNT_OPS == 7, "Exhaustive handling in parse_token_as_op"
+    assert COUNT_OPS == 8, "Exhaustive handling in parse_token_as_op"
     if word == '+':
         return plus()
     elif word == '-':
@@ -225,6 +234,8 @@ def parse_token_as_op(token):
         return equal()
     elif word == 'if':
         return iff()
+    elif word == 'else':
+        return elsef()
     elif word == 'end':
         return end()
     elif word == '.':
@@ -241,13 +252,21 @@ def crossreference_blocks(program):
     stack = []
     for ip in range(len(program)):
         op = program[ip]
-        assert COUNT_OPS == 7, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 8, "Exhaustive handling of ops in crossreference_blocks"
         if op[0] == OP_IF:
             stack.append(ip)
-        elif op[0] == OP_END:
+        elif op[0] == OP_ELSE:
             if_ip = stack.pop()
-            assert program[if_ip][0] == OP_IF, "end can only close if blocks for now"
-            program[if_ip] = (OP_IF, ip)
+            assert program[if_ip][0] == OP_IF, "else can only be used inside if blocks"
+            # ip + 1 so that it doesn't jump to else but rather body of else
+            program[if_ip] = (OP_IF, ip + 1)
+            stack.append(ip)
+        elif op[0] == OP_END:
+            block_ip = stack.pop()
+            if program[block_ip][0] == OP_IF or program[block_ip][0] == OP_ELSE:
+                program[block_ip] = (program[block_ip][0], ip)
+            else:
+                assert False, "end can only close if-else blocks for now"
     return program
 
 
