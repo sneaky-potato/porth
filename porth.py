@@ -24,6 +24,8 @@ OP_ELSE = iota()
 OP_END = iota()
 OP_DUP = iota()
 OP_GT = iota()
+OP_WHILE = iota()
+OP_DO = iota()
 OP_DUMP = iota()
 COUNT_OPS = iota()
 
@@ -64,6 +66,14 @@ def gt():
     return (OP_GT, )
 
 
+def whilef():
+    return (OP_WHILE, )
+
+
+def dof():
+    return (OP_DO, )
+
+
 def dump():
     return (OP_DUMP, )
 
@@ -72,7 +82,7 @@ def simulate_program(program):
     stack = []
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 10, "Exhastive counting in simulation"
+        assert COUNT_OPS == 12, "Exhastive counting in simulation"
         op = program[ip]
         if op[0] == OP_PUSH:
             stack.append(op[1])
@@ -104,7 +114,8 @@ def simulate_program(program):
             # jump to end of block
             ip = op[1]
         elif op[0] == OP_END:
-            ip += 1
+            assert len(op) >= 2, "`end` instruction does not have reference to next instruction"
+            ip = op[1]
         elif op[0] == OP_DUP:
             a = stack.pop()
             stack.append(a)
@@ -115,6 +126,15 @@ def simulate_program(program):
             b = stack.pop()
             stack.append(int(a < b))
             ip += 1
+        elif op[0] == OP_WHILE:
+            ip += 1
+        elif op[0] == OP_DO:
+            a = stack.pop()
+            if a == 0:
+                assert len(op) >= 2, "`do` instruction does not have reference to next instruction"
+                ip = op[1]
+            else:
+                ip += 1
         elif op[0] == OP_DUMP:
             a = stack.pop()
             print(a)
@@ -264,7 +284,7 @@ def uncons(xs):
 
 def parse_token_as_op(token):
     (file_path, row, col, word) = token
-    assert COUNT_OPS == 10, "Exhaustive handling in parse_token_as_op"
+    assert COUNT_OPS == 12, "Exhaustive handling in parse_token_as_op"
     if word == '+':
         return plus()
     elif word == '-':
@@ -281,6 +301,10 @@ def parse_token_as_op(token):
         return dup()
     elif word == '>':
         return gt()
+    elif word == 'while':
+        return whilef()
+    elif word == 'do':
+        return dof()
     elif word == '.':
         return dump()
     else:
@@ -295,7 +319,7 @@ def crossreference_blocks(program):
     stack = []
     for ip in range(len(program)):
         op = program[ip]
-        assert COUNT_OPS == 10, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 12, "Exhaustive handling of ops in crossreference_blocks"
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
@@ -308,8 +332,22 @@ def crossreference_blocks(program):
             block_ip = stack.pop()
             if program[block_ip][0] == OP_IF or program[block_ip][0] == OP_ELSE:
                 program[block_ip] = (program[block_ip][0], ip)
+                program[ip] = (OP_END, ip + 1)
+            elif program[block_ip][0] == OP_DO:
+                assert len(program[block_ip]) >= 2, "end does not have address to next instruction"
+                # reference to address stored in `do` (which is address of while)
+                program[ip] = (OP_END, program[block_ip][1])
+                # store address of after `end` block to `do` operation
+                program[block_ip] = (OP_DO, ip + 1)
             else:
-                assert False, "end can only close if-else blocks for now"
+                assert False, "end can only close `if` `else` `do` blocks for now"
+        elif op[0] == OP_WHILE:
+            stack.append(ip)
+        elif op[0] == OP_DO:
+            while_ip = stack.pop()
+            program[ip] = (OP_DO, while_ip)
+            stack.append(ip)
+
     return program
 
 

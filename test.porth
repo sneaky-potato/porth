@@ -1,5 +1,11 @@
-34 35 + 68 1 + = if
-    420 .
+420 69 > if
+    1 .
 else
-    421 .
+    0 .
+end
+
+5
+while dup 0 > do
+    dup .
+    1 -
 end
