@@ -201,8 +201,9 @@ def compile_program(program, out_file_path):
         out.write("global _start\n")
         out.write("_start:\n")
         for ip in range(len(program)):
+            out.write("addr_%d:\n" % ip)
             op = program[ip]
-            assert COUNT_OPS == 10, "Exhaustive counting in compilation"
+            assert COUNT_OPS == 12, "Exhaustive counting in compilation"
             if op[0] == OP_PUSH:
                 out.write("    ;; -- push %d --\n" % op[1])
                 out.write("    push %d\n" % op[1])
@@ -238,9 +239,11 @@ def compile_program(program, out_file_path):
                 assert len(op) >= 2, "`else` instruction does not have reference to end of its block, please use end after if"
                 out.write("    jmp addr_%d\n" % op[1])
                 # label for else body
-                out.write("addr_%d:\n" % (ip + 1))
+                # out.write("addr_%d:\n" % (ip + 1))
             elif op[0] == OP_END:
-                out.write("addr_%d:\n" % ip)
+                out.write("    ;; -- end --\n")
+                assert len(op) >= 2, "`end` instruction does not have reference to next instruction"
+                out.write("    jmp addr_%d\n" % op[1])
             elif op[0] == OP_DUP:
                 out.write("    ;; -- dup --\n")
                 out.write("    pop rax\n")
@@ -255,6 +258,14 @@ def compile_program(program, out_file_path):
                 out.write("    cmp rax, rbx\n")
                 out.write("    cmovg rcx, rdx\n")
                 out.write("    push rcx\n")
+            elif op[0] == OP_WHILE:
+                out.write("    ;; -- while --\n")
+            elif op[0] == OP_DO:
+                out.write("    ;; -- do --\n")
+                out.write("    pop rax\n")
+                out.write("    test rax, rax\n")
+                assert len(op) >= 2, "`do` instruction does not have reference to end of its block, please use end after if"
+                out.write("    jz addr_%d\n" % op[1])
             elif op[0] == OP_DUMP:
                 out.write("    ;; -- dump --\n")
                 out.write("    pop rdi\n")
