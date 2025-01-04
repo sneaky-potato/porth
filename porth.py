@@ -22,6 +22,7 @@ OP_EQUAL = iota()
 OP_IF = iota()
 OP_ELSE = iota()
 OP_END = iota()
+OP_DUP = iota()
 OP_DUMP = iota()
 COUNT_OPS = iota()
 
@@ -54,6 +55,10 @@ def end():
     return (OP_END, )
 
 
+def dup():
+    return (OP_DUP, )
+
+
 def dump():
     return (OP_DUMP, )
 
@@ -62,7 +67,7 @@ def simulate_program(program):
     stack = []
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 8, "Exhastive counting in simulation"
+        assert COUNT_OPS == 9, "Exhastive counting in simulation"
         op = program[ip]
         if op[0] == OP_PUSH:
             stack.append(op[1])
@@ -95,7 +100,11 @@ def simulate_program(program):
             ip = op[1]
         elif op[0] == OP_END:
             ip += 1
-            pass
+        elif op[0] == OP_DUP:
+            a = stack.pop()
+            stack.append(a)
+            stack.append(a)
+            ip += 1
         elif op[0] == OP_DUMP:
             a = stack.pop()
             print(a)
@@ -163,7 +172,7 @@ def compile_program(program, out_file_path):
         out.write("_start:\n")
         for ip in range(len(program)):
             op = program[ip]
-            assert COUNT_OPS == 7, "Exhaustive counting in compilation"
+            assert COUNT_OPS == 9, "Exhaustive counting in compilation"
             if op[0] == OP_PUSH:
                 out.write("    ;; -- push %d --\n" % op[1])
                 out.write("    push %d\n" % op[1])
@@ -194,8 +203,19 @@ def compile_program(program, out_file_path):
                 out.write("    test rax, rax\n")
                 assert len(op) >= 2, "`if` instruction does not have reference to end of its block, please use end after if"
                 out.write("    jz addr_%d\n" % op[1])
+            elif op[0] == OP_ELSE:
+                out.write("    ;; -- else --\n")
+                assert len(op) >= 2, "`else` instruction does not have reference to end of its block, please use end after if"
+                out.write("    jmp addr_%d\n" % op[1])
+                # label for else body
+                out.write("addr_%d:\n" % (ip + 1))
             elif op[0] == OP_END:
                 out.write("addr_%d:\n" % ip)
+            elif op[0] == OP_DUP:
+                out.write("    ;; -- dup --\n")
+                out.write("    pop rax\n")
+                out.write("    push rax\n")
+                out.write("    push rax\n")
             elif op[0] == OP_DUMP:
                 out.write("    ;; -- dump --\n")
                 out.write("    pop rdi\n")
@@ -225,7 +245,7 @@ def uncons(xs):
 
 def parse_token_as_op(token):
     (file_path, row, col, word) = token
-    assert COUNT_OPS == 8, "Exhaustive handling in parse_token_as_op"
+    assert COUNT_OPS == 9, "Exhaustive handling in parse_token_as_op"
     if word == '+':
         return plus()
     elif word == '-':
@@ -238,6 +258,8 @@ def parse_token_as_op(token):
         return elsef()
     elif word == 'end':
         return end()
+    elif word == 'dup':
+        return dup()
     elif word == '.':
         return dump()
     else:
@@ -252,7 +274,7 @@ def crossreference_blocks(program):
     stack = []
     for ip in range(len(program)):
         op = program[ip]
-        assert COUNT_OPS == 8, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 9, "Exhaustive handling of ops in crossreference_blocks"
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
