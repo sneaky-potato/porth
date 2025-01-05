@@ -26,8 +26,12 @@ OP_DUP = iota()
 OP_GT = iota()
 OP_WHILE = iota()
 OP_DO = iota()
+OP_MEM = iota()
 OP_DUMP = iota()
 COUNT_OPS = iota()
+
+
+MEM_CAPACITY = 640_000
 
 
 def push(x):
@@ -74,6 +78,10 @@ def dof():
     return (OP_DO, )
 
 
+def mem():
+    return (OP_MEM, )
+
+
 def dump():
     return (OP_DUMP, )
 
@@ -82,7 +90,7 @@ def simulate_program(program):
     stack = []
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 12, "Exhastive counting in simulation"
+        assert COUNT_OPS == 13, "Exhastive counting in simulation"
         op = program[ip]
         if op[0] == OP_PUSH:
             stack.append(op[1])
@@ -135,6 +143,8 @@ def simulate_program(program):
                 ip = op[1]
             else:
                 ip += 1
+        elif op[0] == OP_MEM:
+            assert False, "not implmented yet"
         elif op[0] == OP_DUMP:
             a = stack.pop()
             print(a)
@@ -203,7 +213,7 @@ def compile_program(program, out_file_path):
         for ip in range(len(program)):
             out.write("addr_%d:\n" % ip)
             op = program[ip]
-            assert COUNT_OPS == 12, "Exhaustive counting in compilation"
+            assert COUNT_OPS == 13, "Exhaustive counting in compilation"
             if op[0] == OP_PUSH:
                 out.write("    ;; -- push %d --\n" % op[1])
                 out.write("    push %d\n" % op[1])
@@ -266,6 +276,9 @@ def compile_program(program, out_file_path):
                 out.write("    test rax, rax\n")
                 assert len(op) >= 2, "`do` instruction does not have reference to end of its block, please use end after if"
                 out.write("    jz addr_%d\n" % op[1])
+            elif op[0] == OP_MEM:
+                out.write("    ;; -- mem --\n")
+                out.write("    push mem\n")
             elif op[0] == OP_DUMP:
                 out.write("    ;; -- dump --\n")
                 out.write("    pop rdi\n")
@@ -275,6 +288,8 @@ def compile_program(program, out_file_path):
         out.write("    mov rax, 60\n")
         out.write("    mov rdi, 0\n")
         out.write("    syscall\n")
+        out.write("segment .bss\n")
+        out.write("mem resb %d\n" % MEM_CAPACITY)
 
 
 def usage(program):
@@ -282,6 +297,9 @@ def usage(program):
     print("OPTIONS:")
     print("    sim <file>        Simulate program")
     print("    com <file>        Compile program")
+    print("        SUBOPTIONS:")
+    print("            -r        run the program after successful compilation")
+    print("    help              Print this help to stdout")
 
 
 def call_cmd(cmd):
@@ -295,7 +313,7 @@ def uncons(xs):
 
 def parse_token_as_op(token):
     (file_path, row, col, word) = token
-    assert COUNT_OPS == 12, "Exhaustive handling in parse_token_as_op"
+    assert COUNT_OPS == 13, "Exhaustive handling in parse_token_as_op"
     if word == '+':
         return plus()
     elif word == '-':
@@ -316,7 +334,9 @@ def parse_token_as_op(token):
         return whilef()
     elif word == 'do':
         return dof()
-    elif word == '.':
+    elif word == 'mem':
+        return mem()
+    elif word == 'dump':
         return dump()
     else:
         try:
@@ -330,7 +350,7 @@ def crossreference_blocks(program):
     stack = []
     for ip in range(len(program)):
         op = program[ip]
-        assert COUNT_OPS == 12, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 13, "Exhaustive handling of ops in crossreference_blocks"
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
@@ -420,16 +440,31 @@ if __name__ == "__main__":
         program = load_program_from_file(program_path)
         simulate_program(program)
     elif option == "com":
+        flag = None
         if len(argv) < 1:
             usage(program_name)
             print("ERROR: no input file is provided for compilation")
             exit(1)
-        (program_path, argv) = uncons(argv)
+        if len(argv) == 1:
+            (program_path, argv) = uncons(argv)
+        else:
+            (flag, argv) = uncons(argv)
+            if flag.startswith('-') and flag != '-r':
+                usage(program_name)
+                print("ERROR: unknown flag: %s" % flag)
+                exit(1)
+            (program_path, argv) = uncons(argv)
+
         program = load_program_from_file(program_path)
         compile_program(program, "output.asm")
         call_cmd(["nasm", "-felf64", "output.asm"])
         call_cmd(["ld", "-o", "output", "output.o"])
-    else:
-        usage()
-        print("ERROR: unknown option %s" % (option))
+        if flag is not None:
+            call_cmd(["./output"])
+    elif option == "help":
+        usage(program_name)
         exit(1)
+    else:
+        usage(program_name)
+        print("ERROR: unknown option %s" % (option))
+        exit(0)
