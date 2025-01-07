@@ -263,7 +263,8 @@ def compile_program(program, out_file_path):
             elif op[0] == OP_END:
                 out.write("    ;; -- end --\n")
                 assert len(op) >= 2, "`end` instruction does not have reference to next instruction"
-                out.write("    jmp addr_%d\n" % op[1])
+                if ip + 1 != op[1]:
+                    out.write("    jmp addr_%d\n" % op[1])
             elif op[0] == OP_DUP:
                 out.write("    ;; -- dup --\n")
                 out.write("    pop rax\n")
@@ -306,6 +307,7 @@ def compile_program(program, out_file_path):
                 out.write("    call dump\n")
             else:
                 assert False, "Unreachable"
+        out.write("addr_%d:\n" % len(program))
         out.write("    mov rax, 60\n")
         out.write("    mov rdi, 0\n")
         out.write("    syscall\n")
