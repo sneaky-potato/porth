@@ -1,13 +1,18 @@
-mem 0 + 97 . // mem[0] = 'a'
-mem 1 + 98 . // mem[1] = 'b'
-mem 2 + 99 . // mem[2] = 'c'
+mem 0 + 111 .
+mem 1 + 108 .
+mem 2 + 101 .
+mem 3 + 98 .
+mem 4 + 97 .
+mem 5 + 98 .
+mem 6 + 97 .
+mem 7 + 108 .
+mem 8 + 101 .
+mem 9 + 10 .
 
-mem 0 + dup , 1 + . // mem[0] += 1
-mem 1 + dup , 1 + . // mem[1] += 1
-mem 2 + dup , 1 + . // mem[2] += 1
+// mem 0 + dup , 1 + . // mem[0] += 1
+// mem 1 + dup , 1 + . // mem[1] += 1
+// mem 2 + dup , 1 + . // mem[2] += 1
 
-// while loop
-3 while dup 0 > do
-    dup dump
-    1 - 
-end
+10 mem 1 1 syscall3
+
+

@@ -30,6 +30,7 @@ OP_MEM = iota()
 OP_LOAD = iota()
 OP_STORE = iota()
 OP_DUMP = iota()
+OP_SYSCALL3 = iota()
 COUNT_OPS = iota()
 
 
@@ -96,12 +97,16 @@ def dump():
     return (OP_DUMP, )
 
 
+def syscall3():
+    return (OP_SYSCALL3, )
+
+
 def simulate_program(program):
     stack = []
     mem = bytearray(MEM_CAPACITY)
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 15, "Exhastive counting in simulation"
+        assert COUNT_OPS == 16, "Exhastive counting in simulation"
         op = program[ip]
         if op[0] == OP_PUSH:
             stack.append(op[1])
@@ -171,6 +176,25 @@ def simulate_program(program):
             a = stack.pop()
             print(a)
             ip += 1
+        elif op[0] == OP_SYSCALL3:
+            syscall_number = stack.pop()
+            arg1 = stack.pop()
+            arg2 = stack.pop()
+            arg3 = stack.pop()
+            if syscall_number == 1:
+                fd = arg1
+                buf = arg2
+                count = arg3
+                s = mem[buf:buf+count].decode('utf-8')
+                if fd == 1:
+                    print(s, end='')
+                elif fd == 2:
+                    print(s, end='', file=sys.stderr)
+                else:
+                    assert False, "unknown file descriptor %d" % fd
+            else:
+                assert False, "unknown syscall number %d" % syscall_number
+            ip += 1
         else:
             assert False, "Unreachable"
 
@@ -235,7 +259,7 @@ def compile_program(program, out_file_path):
         for ip in range(len(program)):
             out.write("addr_%d:\n" % ip)
             op = program[ip]
-            assert COUNT_OPS == 15, "Exhaustive counting in compilation"
+            assert COUNT_OPS == 16, "Exhaustive counting in compilation"
             if op[0] == OP_PUSH:
                 out.write("    ;; -- push %d --\n" % op[1])
                 out.write("    push %d\n" % op[1])
@@ -317,6 +341,13 @@ def compile_program(program, out_file_path):
                 out.write("    ;; -- dump --\n")
                 out.write("    pop rdi\n")
                 out.write("    call dump\n")
+            elif op[0] == OP_SYSCALL3:
+                out.write("    ;; -- syscall --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rdi\n")
+                out.write("    pop rsi\n")
+                out.write("    pop rdx\n")
+                out.write("    syscall\n")
             else:
                 assert False, "Unreachable"
         out.write("addr_%d:\n" % len(program))
@@ -348,7 +379,7 @@ def uncons(xs):
 
 def parse_token_as_op(token):
     (file_path, row, col, word) = token
-    assert COUNT_OPS == 15, "Exhaustive handling in parse_token_as_op"
+    assert COUNT_OPS == 16, "Exhaustive handling in parse_token_as_op"
     if word == '+':
         return plus()
     elif word == '-':
@@ -377,6 +408,8 @@ def parse_token_as_op(token):
         return store()
     elif word == 'dump':
         return dump()
+    elif word == 'syscall3':
+        return syscall3()
     else:
         try:
             return push(int(word))
@@ -389,7 +422,7 @@ def crossreference_blocks(program):
     stack = []
     for ip in range(len(program)):
         op = program[ip]
-        assert COUNT_OPS == 15, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 16, "Exhaustive handling of ops in crossreference_blocks"
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
