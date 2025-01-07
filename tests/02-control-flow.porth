@@ -1,0 +1,5 @@
+1 0 > if
+    1 dup .
+else
+    0 dup .
+end
