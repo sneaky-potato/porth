@@ -27,6 +27,7 @@ OP_GT = iota()
 OP_WHILE = iota()
 OP_DO = iota()
 OP_DUMP = iota()
+OP_SWAP = iota()
 COUNT_OPS = iota()
 
 
@@ -76,6 +77,10 @@ def dof():
 
 def dump():
     return (OP_DUMP, )
+
+
+def swap():
+    return (OP_SWAP, )
 
 
 def simulate_program(program):
@@ -203,7 +208,7 @@ def compile_program(program, out_file_path):
         for ip in range(len(program)):
             out.write("addr_%d:\n" % ip)
             op = program[ip]
-            assert COUNT_OPS == 12, "Exhaustive counting in compilation"
+            assert COUNT_OPS == 13, "Exhaustive counting in compilation"
             if op[0] == OP_PUSH:
                 out.write("    ;; -- push %d --\n" % op[1])
                 out.write("    push %d\n" % op[1])
@@ -266,6 +271,12 @@ def compile_program(program, out_file_path):
                 out.write("    test rax, rax\n")
                 assert len(op) >= 2, "`do` instruction does not have reference to end of its block, please use end after if"
                 out.write("    jz addr_%d\n" % op[1])
+            elif op[0] == OP_SWAP:
+                out.write("    ;; -- swap --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rbx\n")
+                out.write("    push rax\n")
+                out.write("    push rbx\n")
             elif op[0] == OP_DUMP:
                 out.write("    ;; -- dump --\n")
                 out.write("    pop rdi\n")
@@ -295,7 +306,7 @@ def uncons(xs):
 
 def parse_token_as_op(token):
     (file_path, row, col, word) = token
-    assert COUNT_OPS == 12, "Exhaustive handling in parse_token_as_op"
+    assert COUNT_OPS == 13, "Exhaustive handling in parse_token_as_op"
     if word == '+':
         return plus()
     elif word == '-':
@@ -316,6 +327,8 @@ def parse_token_as_op(token):
         return whilef()
     elif word == 'do':
         return dof()
+    elif word == 'swap':
+        return swap()
     elif word == '.':
         return dump()
     else:
@@ -330,7 +343,7 @@ def crossreference_blocks(program):
     stack = []
     for ip in range(len(program)):
         op = program[ip]
-        assert COUNT_OPS == 12, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 13, "Exhaustive handling of ops in crossreference_blocks"
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
