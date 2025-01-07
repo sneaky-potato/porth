@@ -27,6 +27,8 @@ OP_GT = iota()
 OP_WHILE = iota()
 OP_DO = iota()
 OP_MEM = iota()
+OP_LOAD = iota()
+OP_STORE = iota()
 OP_DUMP = iota()
 COUNT_OPS = iota()
 
@@ -80,6 +82,14 @@ def dof():
 
 def mem():
     return (OP_MEM, )
+
+
+def load():
+    return (OP_LOAD, )
+
+
+def store():
+    return (OP_STORE, )
 
 
 def dump():
@@ -213,7 +223,7 @@ def compile_program(program, out_file_path):
         for ip in range(len(program)):
             out.write("addr_%d:\n" % ip)
             op = program[ip]
-            assert COUNT_OPS == 13, "Exhaustive counting in compilation"
+            assert COUNT_OPS == 15, "Exhaustive counting in compilation"
             if op[0] == OP_PUSH:
                 out.write("    ;; -- push %d --\n" % op[1])
                 out.write("    push %d\n" % op[1])
@@ -279,6 +289,17 @@ def compile_program(program, out_file_path):
             elif op[0] == OP_MEM:
                 out.write("    ;; -- mem --\n")
                 out.write("    push mem\n")
+            elif op[0] == OP_LOAD:
+                out.write("    ;; -- load --\n")
+                out.write("    pop rax\n")
+                out.write("    xor rbx, rbx\n")
+                out.write("    mov bl, [rax]\n")
+                out.write("    push rbx\n")
+            elif op[0] == OP_STORE:
+                out.write("    ;; -- store --\n")
+                out.write("    pop rbx\n")
+                out.write("    pop rax\n")
+                out.write("    mov [rax], bl\n")
             elif op[0] == OP_DUMP:
                 out.write("    ;; -- dump --\n")
                 out.write("    pop rdi\n")
@@ -313,7 +334,7 @@ def uncons(xs):
 
 def parse_token_as_op(token):
     (file_path, row, col, word) = token
-    assert COUNT_OPS == 13, "Exhaustive handling in parse_token_as_op"
+    assert COUNT_OPS == 15, "Exhaustive handling in parse_token_as_op"
     if word == '+':
         return plus()
     elif word == '-':
@@ -336,6 +357,10 @@ def parse_token_as_op(token):
         return dof()
     elif word == 'mem':
         return mem()
+    elif word == ',':
+        return load()
+    elif word == '.':
+        return store()
     elif word == 'dump':
         return dump()
     else:
@@ -350,7 +375,7 @@ def crossreference_blocks(program):
     stack = []
     for ip in range(len(program)):
         op = program[ip]
-        assert COUNT_OPS == 13, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 15, "Exhaustive handling of ops in crossreference_blocks"
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
