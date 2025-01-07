@@ -98,9 +98,10 @@ def dump():
 
 def simulate_program(program):
     stack = []
+    mem = bytearray(MEM_CAPACITY)
     ip = 0
     while ip < len(program):
-        assert COUNT_OPS == 13, "Exhastive counting in simulation"
+        assert COUNT_OPS == 15, "Exhastive counting in simulation"
         op = program[ip]
         if op[0] == OP_PUSH:
             stack.append(op[1])
@@ -154,7 +155,18 @@ def simulate_program(program):
             else:
                 ip += 1
         elif op[0] == OP_MEM:
-            assert False, "not implmented yet"
+            stack.append(0)
+            ip += 1
+        elif op[0] == OP_LOAD:
+            addr = stack.pop()
+            byte = mem[addr]
+            stack.append(byte)
+            ip += 1
+        elif op[0] == OP_STORE:
+            value = stack.pop()
+            addr = stack.pop()
+            mem[addr] = value % 0xFF
+            ip += 1
         elif op[0] == OP_DUMP:
             a = stack.pop()
             print(a)
