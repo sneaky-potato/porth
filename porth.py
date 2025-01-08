@@ -25,6 +25,10 @@ OP_END = iota()
 OP_DUP = iota()
 OP_SWAP = iota()
 OP_DROP = iota()
+OP_SHL = iota()
+OP_SHR = iota()
+OP_OR = iota()
+OP_AND = iota()
 OP_GT = iota()
 OP_LT = iota()
 OP_WHILE = iota()
@@ -78,6 +82,22 @@ def swap():
 
 def drop():
     return (OP_DROP, )
+
+
+def shl():
+    return (OP_SHL, )
+
+
+def shr():
+    return (OP_SHR, )
+
+
+def orf():
+    return (OP_OR, )
+
+
+def andf():
+    return (OP_AND, )
 
 
 def lt():
@@ -274,7 +294,7 @@ def compile_program(program, out_file_path):
         for ip in range(len(program)):
             out.write("addr_%d:\n" % ip)
             op = program[ip]
-            assert COUNT_OPS == 19, "Exhaustive counting in compilation"
+            assert COUNT_OPS == 23, "Exhaustive counting in compilation"
             if op[0] == OP_PUSH:
                 out.write("    ;; -- push %d --\n" % op[1])
                 out.write("    push %d\n" % op[1])
@@ -324,6 +344,30 @@ def compile_program(program, out_file_path):
             elif op[0] == OP_DROP:
                 out.write("    ;; -- drop --\n")
                 out.write("    pop rax\n")
+            elif op[0] == OP_SHR:
+                out.write("    ;; -- shr --\n")
+                out.write("    pop rcx\n")
+                out.write("    pop rbx\n")
+                out.write("    shr rbx, cl\n")
+                out.write("    push rbx\n")
+            elif op[0] == OP_SHL:
+                out.write("    ;; -- shl --\n")
+                out.write("    pop rcx\n")
+                out.write("    pop rbx\n")
+                out.write("    shl rbx, cl\n")
+                out.write("    push rbx\n")
+            elif op[0] == OP_OR:
+                out.write("    ;; -- or --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rbx\n")
+                out.write("    or rbx, rax\n")
+                out.write("    push rbx\n")
+            elif op[0] == OP_AND:
+                out.write("    ;; -- and --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rbx\n")
+                out.write("    and rbx, rax\n")
+                out.write("    push rbx\n")
             elif op[0] == OP_SWAP:
                 out.write("    ;; -- swap --\n")
                 out.write("    pop rax\n")
@@ -421,7 +465,7 @@ def uncons(xs):
 
 def parse_token_as_op(token):
     (file_path, row, col, word) = token
-    assert COUNT_OPS == 19, "Exhaustive handling in parse_token_as_op"
+    assert COUNT_OPS == 23, "Exhaustive handling in parse_token_as_op"
     if word == '+':
         return plus()
     elif word == '-':
@@ -440,6 +484,14 @@ def parse_token_as_op(token):
         return swap()
     elif word == 'drop':
         return drop()
+    elif word == 'shl':
+        return shl()
+    elif word == 'shr':
+        return shr()
+    elif word == 'or':
+        return orf()
+    elif word == 'and':
+        return andf()
     elif word == '<':
         return lt()
     elif word == '>':
@@ -470,7 +522,7 @@ def crossreference_blocks(program):
     stack = []
     for ip in range(len(program)):
         op = program[ip]
-        assert COUNT_OPS == 19, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 23, "Exhaustive handling of ops in crossreference_blocks"
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
