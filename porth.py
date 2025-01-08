@@ -24,6 +24,7 @@ OP_ELSE = iota()
 OP_END = iota()
 OP_DUP = iota()
 OP_SWAP = iota()
+OP_DROP = iota()
 OP_GT = iota()
 OP_LT = iota()
 OP_WHILE = iota()
@@ -73,6 +74,10 @@ def dup():
 
 def swap():
     return (OP_SWAP, )
+
+
+def drop():
+    return (OP_DROP, )
 
 
 def lt():
@@ -269,7 +274,7 @@ def compile_program(program, out_file_path):
         for ip in range(len(program)):
             out.write("addr_%d:\n" % ip)
             op = program[ip]
-            assert COUNT_OPS == 18, "Exhaustive counting in compilation"
+            assert COUNT_OPS == 19, "Exhaustive counting in compilation"
             if op[0] == OP_PUSH:
                 out.write("    ;; -- push %d --\n" % op[1])
                 out.write("    push %d\n" % op[1])
@@ -316,6 +321,9 @@ def compile_program(program, out_file_path):
                 out.write("    pop rax\n")
                 out.write("    push rax\n")
                 out.write("    push rax\n")
+            elif op[0] == OP_DROP:
+                out.write("    ;; -- drop --\n")
+                out.write("    pop rax\n")
             elif op[0] == OP_SWAP:
                 out.write("    ;; -- swap --\n")
                 out.write("    pop rax\n")
@@ -413,7 +421,7 @@ def uncons(xs):
 
 def parse_token_as_op(token):
     (file_path, row, col, word) = token
-    assert COUNT_OPS == 18, "Exhaustive handling in parse_token_as_op"
+    assert COUNT_OPS == 19, "Exhaustive handling in parse_token_as_op"
     if word == '+':
         return plus()
     elif word == '-':
@@ -430,6 +438,8 @@ def parse_token_as_op(token):
         return dup()
     elif word == 'swap':
         return swap()
+    elif word == 'drop':
+        return drop()
     elif word == '<':
         return lt()
     elif word == '>':
@@ -460,7 +470,7 @@ def crossreference_blocks(program):
     stack = []
     for ip in range(len(program)):
         op = program[ip]
-        assert COUNT_OPS == 18, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 19, "Exhaustive handling of ops in crossreference_blocks"
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
