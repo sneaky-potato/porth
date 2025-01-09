@@ -23,7 +23,9 @@ OP_IF = iota()
 OP_ELSE = iota()
 OP_END = iota()
 OP_DUP = iota()
+OP_2DUP = iota()
 OP_SWAP = iota()
+OP_ROT = iota()
 OP_DROP = iota()
 OP_OVER = iota()
 OP_SHL = iota()
@@ -77,8 +79,16 @@ def dup():
     return (OP_DUP, )
 
 
+def dup2():
+    return (OP_2DUP, )
+
+
 def swap():
     return (OP_SWAP, )
+
+
+def rot():
+    return (OP_ROT, )
 
 
 def drop():
@@ -299,7 +309,7 @@ def compile_program(program, out_file_path):
         for ip in range(len(program)):
             out.write("addr_%d:\n" % ip)
             op = program[ip]
-            assert COUNT_OPS == 24, "Exhaustive counting in compilation"
+            assert COUNT_OPS == 26, "Exhaustive counting in compilation"
             if op[0] == OP_PUSH:
                 out.write("    ;; -- push %d --\n" % op[1])
                 out.write("    push %d\n" % op[1])
@@ -346,6 +356,14 @@ def compile_program(program, out_file_path):
                 out.write("    pop rax\n")
                 out.write("    push rax\n")
                 out.write("    push rax\n")
+            elif op[0] == OP_2DUP:
+                out.write("    ;; -- 2dup --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rbx\n")
+                out.write("    push rbx\n")
+                out.write("    push rax\n")
+                out.write("    push rbx\n")
+                out.write("    push rax\n")
             elif op[0] == OP_DROP:
                 out.write("    ;; -- drop --\n")
                 out.write("    pop rax\n")
@@ -386,6 +404,14 @@ def compile_program(program, out_file_path):
                 out.write("    pop rax\n")
                 out.write("    pop rbx\n")
                 out.write("    push rax\n")
+                out.write("    push rbx\n")
+            elif op[0] == OP_ROT:
+                out.write("    ;; -- rot --\n")
+                out.write("    pop rax\n")
+                out.write("    pop rbx\n")
+                out.write("    pop rcx\n")
+                out.write("    push rax\n")
+                out.write("    push rcx\n")
                 out.write("    push rbx\n")
             elif op[0] == OP_GT:
                 out.write("    ;; -- gt --\n")
@@ -478,7 +504,7 @@ def uncons(xs):
 
 def parse_token_as_op(token):
     (file_path, row, col, word) = token
-    assert COUNT_OPS == 24, "Exhaustive handling in parse_token_as_op"
+    assert COUNT_OPS == 26, "Exhaustive handling in parse_token_as_op"
     if word == '+':
         return plus()
     elif word == '-':
@@ -493,8 +519,12 @@ def parse_token_as_op(token):
         return end()
     elif word == 'dup':
         return dup()
+    elif word == '2dup':
+        return dup2()
     elif word == 'swap':
         return swap()
+    elif word == 'rot':
+        return rot()
     elif word == 'drop':
         return drop()
     elif word == 'over':
@@ -537,7 +567,7 @@ def crossreference_blocks(program):
     stack = []
     for ip in range(len(program)):
         op = program[ip]
-        assert COUNT_OPS == 24, "Exhaustive handling of ops in crossreference_blocks"
+        assert COUNT_OPS == 26, "Exhaustive handling of ops in crossreference_blocks"
         if op[0] == OP_IF:
             stack.append(ip)
         elif op[0] == OP_ELSE:
